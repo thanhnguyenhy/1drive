@@ -1,8 +1,6 @@
 import { posix as pathPosix } from 'path'
-
 import type { NextApiRequest, NextApiResponse } from 'next'
 import axios from 'axios'
-
 import apiConfig from '../../../config/api.config'
 import siteConfig from '../../../config/site.config'
 import { revealObfuscatedToken } from '../../utils/oAuthHandler'
@@ -133,74 +131,71 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return
   }
 
-  let { path = '/', raw = false, next = '', sort = 'lastModifiedDateTime' } = req.query
+  const { path = '/', raw = false, next = '', sort = 'lastModifiedDateTime desc' } = req.query
 
-  res.setHeader('Cache-Control', 'no-store')
+  res.setHeader('Cache-Control', apiConfig.cacheControlHeader)
+
+  if (path === '[...path]') {
+    res.status(400).json({ error: 'No path specified.' })
+    return
+  }
 
   if (typeof path !== 'string') {
-    res.status(400).send('Path must be a string.')
+    res.status(400).json({ error: 'Path query invalid.' })
+    return
+  }
+  
+  const cleanPath = pathPosix.resolve('/', pathPosix.normalize(path)).replace(/\/$/, '')
+
+  if (typeof sort !== 'string') {
+    res.status(400).json({ error: 'Sort query invalid.' })
     return
   }
 
-  if (typeof raw !== 'boolean') {
-    raw = raw === 'true'
-  }
-
-  if (typeof next !== 'string') {
-    next = next.toString()
-  }
+  await runCorsMiddleware(req, res)
 
   const accessToken = await getAccessToken()
+  const odTokenHeader = req.headers['x-od-token'];
 
-  if (!accessToken) {
-    res.status(401).send('Unauthorized.')
-    return
-  }
-
-  try {
-    await runCorsMiddleware(req, res)
-  } catch (error) {
-    res.status(500).send('Internal server error.')
-    return
-  }
-
-  const cleanPath = path.replace(/\/+$/, '')
-
-  if (cleanPath.includes('//')) {
-    res.status(400).send('Invalid path.')
-    return
-  }
-
-  const { code, message } = await checkAuthRoute(cleanPath, accessToken, req.headers['x-od-token'])
-
+  const { code, message } = await checkAuthRoute(cleanPath, accessToken, odTokenHeader ?? '');
+  
   if (code !== 200) {
     res.status(code).send(message)
     return
   }
-
-  const requestUrl = `${apiConfig.driveApi}/root${encodePath(cleanPath)}`
-  const isRoot = cleanPath === '/'
-
-  const { data: folderData } = await axios.get(`${requestUrl}${isRoot ? '' : ':'}/children`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    params: {
-      ...{
-        select: 'name,size,id,lastModifiedDateTime,folder,file,video,image',
-        $top: siteConfig.maxItems,
-      },
-      ...(next ? { $skipToken: next } : {}),
-      ...(sort ? { $orderby: sort } : {}),
-    },
-  })
-
-  let folderItems = folderData.value
-
-  if (!raw && !isRoot) {
-    const { data: parentData } = await axios.get(requestUrl, {
+  
+  try {
+    const resp = await axios.get(`${apiConfig.driveApi}/root${encodePath(cleanPath)}/children`, {
       headers: { Authorization: `Bearer ${accessToken}` },
+      params: {
+        select: apiConfig.metadataSelect,
+        top: 200,
+        orderby: sort,
+      },
     })
-    folderItems = [parentData, ...folderItems]
-  }
 
-  res.status(200).send(folderItems)
+    let children = resp.data.value
+
+    if (next !== '') {
+      const resp = await axios.get(next, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+
+      children = resp.data.value
+    }
+
+    if (raw) {
+      res.json(resp.data)
+      return
+    }
+
+    res.json({
+      path: cleanPath,
+      children,
+      next: resp.data['@odata.nextLink'] || null,
+    })
+  } catch (error: any) {
+    console.error(error)
+    res.status(500).send('Internal server error')
+  }
 }
