@@ -157,7 +157,6 @@ export async function checkAuthRoute(
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // If method is POST, then the API is called by the client to store acquired tokens
   if (req.method === 'POST') {
     const { obfuscatedAccessToken, accessTokenExpiry, obfuscatedRefreshToken } = req.body
     const accessToken = revealObfuscatedToken(obfuscatedAccessToken)
@@ -173,27 +172,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return
   }
 
-  // If method is GET, then the API is a normal request to the OneDrive API for files or folders
   const { path = '/', raw = false, next = '', sort = '' } = req.query
 
-  // Set edge function caching for faster load times, check docs:
-  // https://vercel.com/docs/concepts/functions/edge-caching
   res.setHeader('Cache-Control', apiConfig.cacheControlHeader)
 
-  // Sometimes the path parameter is defaulted to '[...path]' which we need to handle
   if (path === '[...path]') {
     res.status(400).json({ error: 'No path specified.' })
     return
   }
-  // If the path is not a valid path, return 400
+
   if (typeof path !== 'string') {
     res.status(400).json({ error: 'Path query invalid.' })
     return
   }
-  // Besides normalizing and making absolute, trailing slashes are trimmed
+
   const cleanPath = pathPosix.resolve('/', pathPosix.normalize(path)).replace(/\/$/, '')
 
-  // Validate sort param
   if (typeof sort !== 'string') {
     res.status(400).json({ error: 'Sort query invalid.' })
     return
@@ -201,33 +195,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const accessToken = await getAccessToken()
 
-  // Return error 403 if access_token is empty
   if (!accessToken) {
     res.status(403).json({ error: 'No access token.' })
     return
   }
 
-  // Handle protected routes authentication
   const { code, message } = await checkAuthRoute(cleanPath, accessToken, req.headers['od-protected-token'] as string)
-  // Status code other than 200 means user has not authenticated yet
+  
   if (code !== 200) {
     res.status(code).json({ error: message })
     return
   }
-  // If message is empty, then the path is not protected.
-  // Conversely, protected routes are not allowed to serve from cache.
+  
   if (message !== '') {
     res.setHeader('Cache-Control', 'no-cache')
   }
 
   const requestPath = encodePath(cleanPath)
-  // Handle response from OneDrive API
   const requestUrl = `${apiConfig.driveApi}/root${requestPath}`
-  // Whether path is root, which requires some special treatment
   const isRoot = requestPath === ''
 
-  // Go for file raw download link, add CORS headers, and redirect to @microsoft.graph.downloadUrl
-  // (kept here for backwards compatibility, and cache headers will be reverted to no-cache)
   if (raw) {
     await runCorsMiddleware(req, res)
     res.setHeader('Cache-Control', 'no-cache')
@@ -235,7 +222,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { data } = await axios.get(requestUrl, {
       headers: { Authorization: `Bearer ${accessToken}` },
       params: {
-        // OneDrive international version fails when only selecting the downloadUrl (what a stupid bug)
         select: 'id,@microsoft.graph.downloadUrl',
       },
     })
@@ -248,7 +234,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return
   }
 
-  // Querying current path identity (file or folder) and follow up query childrens in folder
   try {
     const { data: identityData } = await axios.get(requestUrl, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -270,12 +255,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
       })
 
-      // Extract next page token from full @odata.nextLink
       const nextPage = folderData['@odata.nextLink']
         ? folderData['@odata.nextLink'].match(/&\$skiptoken=(.+)/i)[1]
         : null
 
-      // Return paging token if specified
       if (nextPage) {
         res.status(200).json({ folder: folderData, next: nextPage })
       } else {
