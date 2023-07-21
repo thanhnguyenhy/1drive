@@ -47,17 +47,20 @@ function mapAbsolutePath(path: string): string {
 function useDriveItemSearch() {
   const [query, setQuery] = useState('')
   const searchDriveItem = async (q: string) => {
-    const { data } = await axios.get<OdSearchResult>(`/api/search/?q=${q}`)
-
+    const encodedQuery = encodeURIComponent(q + '*');
+    const { data } = await axios.get<OdSearchResult>(`/api/search/?q=${encodedQuery}`)
+  
     // Map parentReference to the absolute path of the search result
     data.map(item => {
       item['path'] =
         'path' in item.parentReference
-          ? // OneDrive International have the path returned in the parentReference field
-            `${mapAbsolutePath(item.parentReference.path)}/${encodeURIComponent(item.name)}`
-          : // OneDrive for Business/Education does not, so we need extra steps here
-            ''
+          ? `${mapAbsolutePath(item.parentReference.path)}/${encodeURIComponent(item.name)}`
+          : ''
     })
+  
+    return data
+  }
+  
 
     return data
   }
