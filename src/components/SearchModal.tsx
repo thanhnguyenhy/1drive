@@ -47,19 +47,20 @@ function mapAbsolutePath(path: string): string {
 function useDriveItemSearch() {
   const [query, setQuery] = useState('')
   const searchDriveItem = async (q: string) => {
-    // ensure the query ends with a wildcard
-    const { data } = await axios.get<OdSearchResult>(`/api/search/?q=${encodeURIComponent(q + "*")}`)
-  
+    const { data } = await axios.get<OdSearchResult>(`/api/search/?q=${q}`)
+
     // Map parentReference to the absolute path of the search result
     data.map(item => {
       item['path'] =
         'path' in item.parentReference
-          ? `${mapAbsolutePath(item.parentReference.path)}/${encodeURIComponent(item.name)}`
-          : ''
+          ? // OneDrive International have the path returned in the parentReference field
+            `${mapAbsolutePath(item.parentReference.path)}/${encodeURIComponent(item.name)}`
+          : // OneDrive for Business/Education does not, so we need extra steps here
+            ''
     })
-  
+
     return data
-  }  
+  }
 
   const debouncedDriveItemSearch = useConstant(() => AwesomeDebouncePromise(searchDriveItem, 1000))
   const results = useAsync(async () => {
