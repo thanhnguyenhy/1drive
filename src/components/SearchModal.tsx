@@ -47,8 +47,8 @@ function mapAbsolutePath(path: string): string {
 function useDriveItemSearch() {
   const [query, setQuery] = useState('')
   const searchDriveItem = async (q: string) => {
-    const encodedQuery = encodeURIComponent(q + '*');
-    const { data } = await axios.get<OdSearchResult>(`/api/search/?q=${encodedQuery}`)
+    // ensure the query ends with a wildcard
+    const { data } = await axios.get<OdSearchResult>(`/api/search/?q=${encodeURIComponent(q + "*")}`)
   
     // Map parentReference to the absolute path of the search result
     data.map(item => {
@@ -57,6 +57,9 @@ function useDriveItemSearch() {
           ? `${mapAbsolutePath(item.parentReference.path)}/${encodeURIComponent(item.name)}`
           : ''
     })
+  
+    return data
+  }
   
     return data
   }
