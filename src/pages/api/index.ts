@@ -156,14 +156,6 @@ export async function checkAuthRoute(
   return { code: 200, message: 'Authenticated.' }
 }
 
-export async function searchItems(query: string, accessToken: string) {
-  const { data } = await axios.get(`${apiConfig.driveApi}/root/search(q='${query}')`, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  })
-
-  return data
-}
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // If method is POST, then the API is called by the client to store acquired tokens
   if (req.method === 'POST') {
@@ -234,12 +226,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Whether path is root, which requires some special treatment
   const isRoot = requestPath === ''
 
-  if (typeof search === 'string' && search.trim() !== '') {
-    const searchData = await searchItems(search, accessToken)
-    res.status(200).json({ searchData })
-    return
-  }
-  
   // Go for file raw download link, add CORS headers, and redirect to @microsoft.graph.downloadUrl
   // (kept here for backwards compatibility, and cache headers will be reverted to no-cache)
   if (raw) {
