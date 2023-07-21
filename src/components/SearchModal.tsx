@@ -59,18 +59,7 @@ function useDriveItemSearch() {
     })
   
     return data
-  }
-  
-    return data
-  }
-  
-  
-    return data
-  }
-  
-
-    return data
-  }
+  }  
 
   const debouncedDriveItemSearch = useConstant(() => AwesomeDebouncePromise(searchDriveItem, 1000))
   const results = useAsync(async () => {
