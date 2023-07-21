@@ -53,7 +53,7 @@ module.exports = {
   links: [
     {
       name: 'Facebook',
-      link: 'https:/facebook.com/groups/yamcommunity',
+      link: 'https:/facebook.com/nqhuy.0701',
     },
   ],
 
