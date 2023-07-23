@@ -55,6 +55,10 @@ module.exports = {
       name: 'Facebook',
       link: 'https://facebook.com/nqhuy.0701',
     },
+    {
+      name: 'Facebook',
+      link: 'https://facebook.com/vanloc0301',
+    }
   ],
 
   // This is a day.js-style datetime format string to format datetimes in the app. Ref to
