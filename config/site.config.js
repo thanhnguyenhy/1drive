@@ -56,8 +56,8 @@ module.exports = {
       link: 'https://facebook.com/nqhuy.0701',
     },
     {
-      name: 'Facebook',
-      link: 'https://facebook.com/vanloc93',
+      name: 'Onedrive',
+      link: 'https://sharengay1-my.sharepoint.com/:f:/g/personal/huynguyen_sharengay1_onmicrosoft_com/EgfRGZf7w_1DqtM_gEn2pzMBffHEaNpdnUsYrvtwC2nXVg',
     }
   ],
 
